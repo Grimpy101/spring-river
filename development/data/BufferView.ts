@@ -1,10 +1,8 @@
-import Buffer from "./Buffer.js";
-
 export default class BufferView {
 
-    buffer: Buffer;
+    buffer: any;
     byteLength: number;
     byteOffset: number;
-    target: number;
     byteStride: number;
+    target: number;
 }
