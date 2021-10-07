@@ -9,9 +9,9 @@ export default class Primitive {
     material: Material;
 
     constructor(options: any) {
-        this.mode = options.mode;
-        this.attributes = options.attributes;
-        this.indices = options.indices;
-        this.material = options.material;
+        this.mode = options.mode !== undefined ? options.mode : 4;
+        this.attributes = {...(options.attributes || {})};
+        this.indices = options.indices || null;
+        this.material = options.material || new Material();
     }
 }

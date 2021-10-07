@@ -11,7 +11,7 @@ export default class Accessor {
     min: number[];
     numComponents: number;
 
-    constructor(options: any) {
+    constructor(options: any = {}) {
         this.bufferView = options.bufferView || null;
         this.byteOffset = options.byteOffset || 0;
         this.componentType = options.componentType || 5120;

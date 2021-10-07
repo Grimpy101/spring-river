@@ -1,17 +1,19 @@
-import Accessor from "../data/Accessor";
-import BufferView from "../data/BufferView";
-import Light from "../data/light/Light";
-import Material from "../data/Material";
-import Mesh from "../data/Mesh";
-import Node from "../data/Node";
-import Camera from "../data/camera/Camera";
-import PerspectiveCamera from "../data/camera/PerspectiveCamera";
-import OrthographicCamera from "../data/camera/OrthographicCamera";
-import Primitive from "../data/Primitive";
-import Sampler from "../data/Sampler";
-import Scene from "../data/Scene";
-import Texture from "../data/Texture";
-import { GlTf } from "../schemas/GLTF_types";
+import Accessor from "../data/Accessor.js";
+import BufferView from "../data/BufferView.js";
+import Light from "../data/light/Light.js";
+import Material from "../data/Material.js";
+import Mesh from "../data/Mesh.js";
+import Node from "../data/Node.js";
+import Camera from "../data/camera/Camera.js";
+import PerspectiveCamera from "../data/camera/PerspectiveCamera.js";
+import OrthographicCamera from "../data/camera/OrthographicCamera.js";
+import Primitive from "../data/Primitive.js";
+import Sampler from "../data/Sampler.js";
+import Scene from "../data/Scene.js";
+import Texture from "../data/Texture.js";
+import { GlTf } from "../schemas/GLTF_types.js";
+import SpotLight from "../data/light/SpotLight.js";
+import PointLight from "../data/light/PointLight.js";
 
 export default class GLTFImporter {
 
@@ -34,6 +36,20 @@ export default class GLTFImporter {
         const response = await fetch(url);
         return await response.json();
     }
+    
+    async fetchBuffer(url: string) {
+        const response = await fetch(url);
+        return await response.arrayBuffer();
+    }
+
+    async fetchImage(url: string): Promise<HTMLImageElement> {
+        return new Promise((resolve, reject) => {
+            let image = new Image();
+            image.addEventListener('load', e => resolve(image));
+            image.addEventListener('error', reject);
+            image.src = url;
+        });
+    }
 
     async load(url: string) {
         this.gltfUlr = new URL(url, window.location.href);
@@ -47,6 +63,32 @@ export default class GLTFImporter {
         } else {
             return set.find(element => element.name === nameOrIndex);
         }
+    }
+
+    async loadBuffer(nameOrIndex: string | number): Promise<ArrayBuffer> {
+        const gltfBuffer = this.findByNameOrIndex(this.gltf.buffers, nameOrIndex);
+        if (this.cache.has(gltfBuffer)) {
+            return this.cache.get(gltfBuffer);
+        }
+
+        const url = new URL(gltfBuffer.uri, this.gltfUlr);
+        const buffer = await this.fetchBuffer(url.href);
+        this.cache.set(gltfBuffer, buffer);
+        return buffer;
+    }
+
+    async loadBufferView(nameOrIndex: string | number): Promise<BufferView> {
+        const gltfBufferView = this.findByNameOrIndex(this.gltf.bufferViews, nameOrIndex);
+        if (this.cache.has(gltfBufferView)) {
+            return this.cache.get(gltfBufferView);
+        }
+
+        const bufferView = new BufferView({
+            ...gltfBufferView,
+            buffer: await this.loadBuffer(gltfBufferView.buffer),
+        });
+        this.cache.set(gltfBufferView, BufferView);
+        return bufferView;
     }
 
     async loadAccessor(nameOrIndex: string | number): Promise<Accessor> {
@@ -69,9 +111,117 @@ export default class GLTFImporter {
 
         const accessor = new Accessor({
             ...gltfAccessor,
-            buffeView: bufferView,
+            bufferView: bufferView,
             numComponents: accessorTypeToNumComponentsMap[gltfAccessor.type]
         });
+        this.cache.set(gltfAccessor, accessor);
+        return accessor;
+    }
+
+    async loadSampler(nameOrIndex: string | number): Promise<Sampler> {
+        const gltfSampler = this.findByNameOrIndex(this.gltf.samplers, nameOrIndex);
+        if (this.cache.has(gltfSampler)) {
+            return this.cache.get(gltfSampler);
+        }
+
+        const sampler = new Sampler({
+            min:    gltfSampler.minFilter,
+            mag:    gltfSampler.magFilter,
+            wrapS:  gltfSampler.wrapS,
+            wrapT:  gltfSampler.wrapT
+        });
+        this.cache.set(gltfSampler, sampler);
+        return sampler;
+    }
+
+    async loadImage(nameOrIndex: string | number): Promise<HTMLImageElement> {
+        const gltfImage = this.findByNameOrIndex(this.gltf.images, nameOrIndex);
+        if (this.cache.has(gltfImage)) {
+            return this.cache.get(gltfImage);
+        }
+
+        if (gltfImage.uri) {
+            const url = new URL(gltfImage.uri, this.gltfUlr);
+            const image = await this.fetchImage(url.href);
+            this.cache.set(gltfImage, image);
+            return image;
+        } else {
+            const bufferView = await this.loadBufferView(gltfImage.bufferView);
+            const blob = new Blob([bufferView], { type: gltfImage.mimeType });
+            const url = URL.createObjectURL(blob);
+            const image = await this.fetchImage(url);
+            URL.revokeObjectURL(url);
+            this.cache.set(gltfImage, image);
+            return image;
+        }
+    }
+
+    async loadTexture(nameOrIndex: string | number): Promise<Texture> {
+        const gltfTexture = this.findByNameOrIndex(this.gltf.textures, nameOrIndex);
+        if (this.cache.has(gltfTexture)) {
+            return this.cache.get(gltfTexture);
+        }
+
+        let options: {[name: string]: any} = {};
+        if (gltfTexture.source !== undefined) {
+            options.image = await this.loadImage(gltfTexture.source);
+        }
+        if (gltfTexture.sampler !== undefined) {
+            options.sampler = await this.loadSampler(gltfTexture.sampler);
+        }
+
+        const texture = new Texture(options);
+        this.cache.set(gltfTexture, texture);
+        return texture;
+    }
+
+    async loadMaterial(nameOrIndex: string | number): Promise<Material> {
+        const gltfMaterial = this.findByNameOrIndex(this.gltf.materials, nameOrIndex);
+        if (this.cache.has(gltfMaterial)) {
+            return this.cache.get(gltfMaterial);
+        }
+
+        let options: {[name: string]: any} = {};
+        const pbr = gltfMaterial.pbrMetallicRoughness;
+        if (pbr !== undefined) {
+            if (pbr.baseColorTexture !== undefined) {
+                options.baseColorTexture = await this.loadTexture(pbr.baseColorTexture.index);
+                options.baseColorTexCoord = pbr.baseColorTexture.texCoord;
+            }
+            if (pbr.metallicRoughnessTexture !== undefined) {
+                options.metallicRoughnessTexture = await this.loadTexture(pbr.metallicRoughnessTexture.index);
+                options.metallicRoughnessTexCoord = pbr.metallicRoughnessTexture.texCoord;
+            }
+            options.baseColorFactor = pbr.baseColorFactor;
+            options.metallicFactor = pbr.metallicFactor;
+            options.roughnessFactor = pbr.roughnessFactor;
+
+            if (gltfMaterial.normalTexture !== undefined) {
+                options.normalTexture = await this.loadTexture(gltfMaterial.normalTexture.index);
+                options.normalTexCoord = gltfMaterial.normalTexture.texCoord;
+                options.normalFactor = gltfMaterial.normalTexture.scale;
+            }
+
+            if (gltfMaterial.occlusionTexture !== undefined) {
+                options.occlusionTexture = await this.loadTexture(gltfMaterial.occlusionTexture.index);
+                options.occlusionTexCoord = gltfMaterial.occlusionTexture.texCoord;
+                options.occlusionFactor = gltfMaterial.occlusionTexture.strength;
+            }
+
+            if (gltfMaterial.emissiveTexture !== undefined) {
+                options.emissiveTexture = await this.loadTexture(gltfMaterial.emissiveTexture.index);
+                options.emissiveTexCoord = gltfMaterial.emissiveTexture.texCoord;
+                options.emissiveFactor = gltfMaterial.emissiveFactor;
+            }
+
+            options.alphaMode = gltfMaterial.alphaMode;
+            options.alphaCutoff = gltfMaterial.alphaCutoff;
+            options.doubleSided = gltfMaterial.doubleSided;
+
+            const material = new Material(options);
+            this.cache.set(gltfMaterial, material);
+            return material;
+        }
     }
 
     async loadMesh(nameOrIndex: string | number): Promise<Mesh> {
@@ -85,10 +235,9 @@ export default class GLTFImporter {
             primitives: []
         }
         for (const primitiveSpec of gltfMesh.primitives) {
-            let primitiveOptions: any = {
-                attributes: {}
-            };
-            for (const name in primitiveOptions.attributes) {
+            let primitiveOptions: any = {};
+            primitiveOptions.attributes = {};
+            for (const name in primitiveSpec.attributes) {
                 primitiveOptions.attributes[name] = await this.loadAccessor(primitiveSpec.attributes[name]);
             }
             if (primitiveSpec.indices !== undefined) {
@@ -101,6 +250,7 @@ export default class GLTFImporter {
             const primitive = new Primitive(primitiveOptions);
             options.primitives.push(primitive);
         }
+
         const mesh = new Mesh(options);
         this.cache.set(gltfMesh, mesh);
         return mesh;
@@ -139,7 +289,34 @@ export default class GLTFImporter {
             this.cache.set(gltfCamera, camera);
             return camera;
         } else {
-            throw new Error("Tip kamere ni veljaven.");
+            throw new Error("Tip kamere ni podprt.");
+        }
+    }
+
+    async loadLight(nameOrIndex: string | number): Promise<Light> {
+        const gltfLight = this.findByNameOrIndex(this.gltf.extensions.KHR_lights_punctual.lights, nameOrIndex);
+        if (this.cache.has(gltfLight)) {
+            return this.cache.get(gltfLight);
+        }
+
+        let options: {[name: string]: any} = {};
+
+        if (gltfLight.color !== undefined) {
+            options.color = gltfLight.color;
+        }
+        if (gltfLight.intensity !== undefined) {
+            options.intensity = gltfLight.intensity;
+        }
+        if (gltfLight.name !== undefined) {
+            options.name = options.name;
+        }
+
+        if (gltfLight.type === 'point') {
+            const light = new PointLight(options);
+            this.cache.set(gltfLight, light);
+            return light;
+        } else {
+            throw new Error("Tip luci ni podprt.")
         }
     }
 
@@ -165,6 +342,11 @@ export default class GLTFImporter {
         }
         if (gltfNode.mesh !== undefined) {
             options.mesh = await this.loadMesh(gltfNode.mesh);
+        }
+        if (gltfNode.extensions !== undefined) {
+            if (gltfNode.extensions.KHR_lights_punctual !== undefined) {
+                options.light = await this.loadLight(gltfNode.extensions.KHR_lights_punctual.light);
+            }
         }
 
         const node = new Node(options);

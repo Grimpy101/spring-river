@@ -1,1 +1,1 @@
-{"version":3,"file":"Camera.js","sourceRoot":"","sources":["../../../development/data/camera/Camera.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,OAAO,OAAO,MAAM;CAI1B"}
+{"version":3,"file":"Camera.js","sourceRoot":"","sources":["../../../development/data/camera/Camera.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,OAAO,OAAO,MAAM;IAKvB,YAAY,OAAY;QACpB,IAAI,CAAC,IAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CAAC,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC,CAAC,QAAQ,CAAC;QACnD,IAAI,CAAC,IAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CAAC,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC,CAAC,SAAS,CAAC;IACxD,CAAC;CACJ"}
