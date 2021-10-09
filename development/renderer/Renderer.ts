@@ -26,7 +26,7 @@ export default class Renderer {
         this.glObjects = new Map();
         this.programs = WebGL.buildPrograms(gl, shaders);
 
-        gl.clearColor(1, 1, 1, 1);
+        gl.clearColor(0, 0, 0, 1);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
     }
@@ -205,11 +205,12 @@ export default class Renderer {
                 0, 0, cameraNode.camera.spec1, -1,
                 0, 0, cameraNode.camera.spec2, 0
             ];
-            console.log(node.name, vector4);
 
             if (node.mesh) {
                 const program = this.programs.shader1;
                 gl.uniform4fv(program.uniforms.uTransform, vector4);
+                gl.uniform4fv(program.uniforms.uRotor, node.rotation.toArray());
+                gl.uniform3fv(program.uniforms.uScale, node.scale.toArray())
                 gl.uniformMatrix4fv(program.uniforms.uMatrix, false, matrix);
                 for (const primitive of node.mesh.primitives) {
                     this.renderPrimitive(primitive);
@@ -219,6 +220,7 @@ export default class Renderer {
             for (const child of node.children) {
                 this.renderNode(child, cameraNode);
             }
+            node.clearTransforms();
         }
     }
 

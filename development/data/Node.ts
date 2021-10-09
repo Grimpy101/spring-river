@@ -33,7 +33,7 @@ export default class Node {
         this.scale = new Vector3(scale);
         this.rotation = Rotor.quat2rotor(rotation);
 
-        this.updateTransform();
+        this.transformFromTRS();
         
         this.camera = options.camera || null;
         this.mesh = options.mesh || null;
@@ -48,12 +48,27 @@ export default class Node {
 
     updateTransform() {
         if (this.parent) {
-            this.transform = Vector3.add(this.parent.transform, this.translation);
+            this.transform = Vector3.add(this.transform, this.parent.transform);
+            this.transform = Vector3.scale(this.transform, this.parent.scale);
+            this.transform = Vector3.rotate(this.transform, this.parent.rotation);
+        }
+        this.transform = Vector3.add(this.transform, this.translation);
+    }
+
+    transformFromTRS() {
+        if (this.parent) {
+            this.transform = Vector3.add(this.translation, this.parent.transform);
+            this.transform = Vector3.scale(this.transform, this.parent.scale)
+            this.transform = Vector3.rotate(this.transform, this.parent.rotation);
         } else {
             this.transform = this.translation.clone();
         }
-        this.transform = Vector3.scale(this.transform, this.scale);
-        this.transform = Vector3.rotate(this.transform, this.rotation);
+    }
+
+    clearTransforms() {
+        this.translation = new Vector3([0, 0, 0]);
+        this.scale = new Vector3([1, 1, 1]);
+        this.rotation = new Rotor(0, [0, 0, 0]);
     }
 
     addChild(node: Node) {

@@ -2,6 +2,7 @@ import PerspectiveCamera from "./data/camera/PerspectiveCamera.js";
 import Node from "./data/Node.js";
 import Scene from "./data/Scene.js";
 import GLTFImporter from "./importer/GLTFImporter.js";
+import Interactions from "./interaction/Interactions.js";
 import Renderer from "./renderer/Renderer.js";
 
 class Application {
@@ -11,6 +12,7 @@ class Application {
 
     importer: GLTFImporter;
     renderer: Renderer;
+    interactor: Interactions
 
     scene: Scene;
     camera: Node;
@@ -65,7 +67,6 @@ class Application {
 
         this.scene = await this.importer.loadScene(this.importer.defaultScene);
         this.camera = (await this.importer.loadNode('Camera')).children[0];
-        console.log(this.scene);
 
         if (!this.scene || !this.camera) {
             throw new Error("Scene ali kamere ni.");
@@ -78,9 +79,19 @@ class Application {
         this.renderer = new Renderer(this.gl);
         this.renderer.prepareScene(this.scene);
         this.resize();
+
+        this.interactor = new Interactions(this.camera);
+        this.pointerlockchangeHandler = this.pointerlockchangeHandler.bind(this);
+        this.enableInteraction = this.enableInteraction.bind(this);
+        this.canvas.addEventListener('click', this.enableInteraction);
+        document.addEventListener('pointerlockchange', this.pointerlockchangeHandler);
     }
 
-    update() {}
+    update() {
+        if (this.camera) {
+            //console.log(this.camera.rotation.toArray());
+        }
+    }
 
     render() {
         if (this.renderer) {
@@ -96,6 +107,22 @@ class Application {
         if (this.camera && this.camera.camera instanceof PerspectiveCamera) {
             this.camera.camera.aspectRatio = aspectRatio;
             this.camera.camera.updateTransform();
+        }
+    }
+
+    enableInteraction() {
+        this.canvas.requestPointerLock();
+    }
+
+    pointerlockchangeHandler() {
+        if (!this.camera) {
+            return;
+        }
+
+        if (document.pointerLockElement === this.canvas) {
+            this.interactor.enable();
+        } else {
+            this.interactor.disable();
         }
     }
 

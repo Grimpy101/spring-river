@@ -15,6 +15,14 @@ export default class Rotor {
         rotor.sina_zx = quaternion[2];
         return rotor;
     }
+    static multiply(r1, r2) {
+        const r = new Rotor(0, [0, 0, 0]);
+        r.cosa = r1.cosa * r2.cosa - r1.sina_xy * r2.sina_xy - r1.sina_zx * r2.sina_zx - r1.sina_yz * r2.sina_yz;
+        r.sina_xy = r1.sina_xy * r2.cosa + r1.cosa * r2.sina_xy + r1.sina_yz * r2.sina_zx - r1.sina_zx * r2.sina_yz;
+        r.sina_zx = r1.sina_zx * r2.cosa + r1.cosa * r2.sina_zx - r1.sina_yz * r2.sina_xy + r1.sina_xy * r2.sina_yz;
+        r.sina_yz = r1.sina_yz * r2.cosa + r1.cosa * r2.sina_yz + r1.sina_zx * r2.sina_xy - r1.sina_xy * r2.sina_zx;
+        return r;
+    }
     invert() {
         return Rotor.quat2rotor([
             this.cosa,
@@ -22,6 +30,14 @@ export default class Rotor {
             -this.sina_yz,
             -this.sina_zx
         ]);
+    }
+    toArray() {
+        return [
+            this.cosa,
+            this.sina_xy,
+            this.sina_yz,
+            this.sina_zx
+        ];
     }
 }
 //# sourceMappingURL=Rotor.js.map

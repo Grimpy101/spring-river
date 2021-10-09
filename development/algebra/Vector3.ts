@@ -49,6 +49,7 @@ export default class Vector3 {
     }
 
     static rotate(v: Vector3, r: Rotor) {
+        // TODO: Zoptimiziraj!
         const q = new Vector3([
             r.cosa * v.x + r.sina_xy * v.y + r.sina_zx * v.z,
             r.cosa * v.y + r.sina_xy * v.x + r.sina_yz * v.z,
