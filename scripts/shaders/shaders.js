@@ -1,60 +1,115 @@
 const vertex = `#version 300 es
+precision mediump float;
 
 layout (location = 0) in vec4 aPosition;
 layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec3 aNormal;
 
-uniform vec4 uTransform;
-uniform mat4 uMatrix;
-uniform vec4 uRotor;
-uniform vec3 uScale;
+uniform mat4 uViewModel;
+uniform mat4 uProjection;
+uniform mat4 uDepthMatrix;
 
 out vec2 vTexCoord;
-
-vec4 rotate(vec4 v, vec4 r) {
-    vec3 q;
-    q.x = r.x * v.x + r.y * v.y + r.w * v.z;
-    q.y = r.x * v.y + r.y * v.x + r.z * v.z;
-    q.z = r.x * v.z + r.w * v.x + r.z * v.y;
-    float xyz;
-    xyz = r.z * v.x - r.w * v.y + r.y * v.z;
-    vec4 newVector;
-    newVector.x = r.x * q.x + r.y * q.y + r.w * q.z + r.z * xyz;
-    newVector.y = r.x * q.y - r.y * q.x - r.w * xyz + r.z * q.z;
-    newVector.z = r.x * q.z + r.y * xyz - r.w * q.x - r.z * q.y;
-    newVector.w = 1.0;
-    return newVector;
-}
-
-vec4 scale(vec4 v, vec3 s) {
-    vec4 scaledVector;
-    scaledVector.x = v.x * s.x;
-    scaledVector.y = v.y * s.y;
-    scaledVector.z = v.z * s.z;
-    return scaledVector;
-}
+out vec3 vVertexPosition;
+out vec3 vNormal;
+out vec4 vVertexRelativeToLight;
 
 void main() {
+    vVertexRelativeToLight = uDepthMatrix * aPosition;
+    vVertexPosition = (uViewModel * aPosition).xyz;
+    vNormal = aNormal;
     vTexCoord = aTexCoord;
-    vec4 newPosition = uTransform + aPosition;
-    newPosition = rotate(newPosition, uRotor);
-    newPosition = scale(newPosition, uScale);
-    gl_Position = uMatrix * newPosition;
+    gl_Position = uProjection * vec4(vVertexPosition, 1);
 }
 `;
 const fragment = `#version 300 es
 precision mediump float;
 
-uniform mediump sampler2D uTexture;
+uniform mat4 uViewModel;
 
+uniform mediump sampler2D uTexture;
+uniform mediump sampler2D uShadowMap;
+uniform mediump sampler2D uNormalMap;
+
+uniform vec3 uAmbientColor;
+uniform vec3 uDiffuseColor;
+uniform vec3 uSpecularColor;
+
+uniform float uShininess;
+uniform float uLightRange;
+uniform vec4 uLightPosition;
+
+in vec3 vVertexPosition;
+in vec3 vNormal;
 in vec2 vTexCoord;
+
+in vec4 vVertexRelativeToLight;
 
 out vec4 oColor;
 
+float shadowFactor() {
+    float visibility = 1.0;
+    float dLight2Occluder = texture(uShadowMap, vVertexRelativeToLight.xy).z;
+    float dLight2Fragment = vVertexRelativeToLight.z;
+    if (dLight2Occluder < dLight2Fragment) {
+        visibility = 0.5;
+    }
+    return visibility;
+}
+
 void main() {
-    oColor = texture(uTexture, vTexCoord);
+    oColor = vec4(0.0);
+
+    float shadowFactor = shadowFactor();
+
+    vec3 lightPosition = uLightPosition.xyz;
+    float d = distance(vVertexPosition, lightPosition);
+    float atten1 = 1.0 - pow(d / uLightRange, 4.0);
+    float atten2 = min(atten1, 1.0);
+    float attenuation = max(atten2, 0.0) / (d * d);
+
+    vec3 N = (uViewModel * vec4(vNormal, 0)).xyz;
+    vec3 L = normalize(lightPosition - vVertexPosition);
+    vec3 E = normalize(-vVertexPosition);
+    vec3 R = normalize(reflect(-L, N));
+
+    float lambert = max(0.0, dot(L, N));
+    float phong = pow(max(0.0, dot(E, R)), uShininess);
+
+    vec3 ambient = uAmbientColor;
+    vec3 diffuse = uDiffuseColor * lambert * shadowFactor;
+    vec3 specular = uSpecularColor * phong * shadowFactor;
+
+    vec3 light = (ambient + diffuse + specular) * attenuation;
+
+    oColor += texture(uTexture, vTexCoord) * vec4(light, 1);
+}
+`;
+const shadow_vertex = `#version 300 es
+precision mediump float;
+
+layout (location = 0) in vec4 aPosition;
+
+uniform mat4 uMVPMatrix;
+
+void main() {
+    gl_Position = uMVPMatrix * aPosition;
+}
+`;
+const shadow_fragment = `#version 300 es
+precision mediump float;
+
+layout(location = 0) out float fragmentdepth;
+
+void main() {
+    fragmentdepth = gl_FragCoord.z;
 }
 `;
 export default {
-    shader1: { vertex, fragment }
+    shader1: { vertex, fragment },
+    shader_shadow: {
+        "vertex": shadow_vertex,
+        "fragment": shadow_fragment
+    }
 };
 //# sourceMappingURL=shaders.js.map

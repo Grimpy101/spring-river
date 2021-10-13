@@ -6,9 +6,15 @@ export default class Interactions {
     }
     enable() {
         this.playerInteraction.enable();
+        this.enabled = true;
     }
     disable() {
         this.playerInteraction.disable();
+        this.enabled = false;
+    }
+    step(dt) {
+        this.playerInteraction.moveOnKeyAction(dt);
+        this.player.updateMatrix();
     }
 }
 //# sourceMappingURL=Interactions.js.map

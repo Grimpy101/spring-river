@@ -3,11 +3,18 @@
         "lib": ["ES2017", "DOM"],
         "target": "ES6",
         "module": "ES6",
+        "allowJs": true,
         "noImplicitAny": true,
         "removeComments": true,
         "preserveConstEnums": true,
         "sourceMap": true,
-        "outDir": "scripts"
+        "outDir": "scripts",
     },
-    "exclude": ["node_modules"]
+    "include": [
+        "development/*.ts"
+    ],
+    "exclude": [
+        "scripts/*",
+        "node_modules"
+    ]
 }

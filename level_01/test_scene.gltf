@@ -87,10 +87,10 @@
             ],
             "name" : "Camera",
             "rotation" : [
-                0.705299,
-                0.705299,
-                -0.050527,
-                -0.050527
+                0.7071009278297424,
+                -0.002884859452024102,
+                0.002884859452024102,
+                0.7071008682250977
             ],
             "translation" : [
                 0.7186713218688965,
@@ -327,47 +327,47 @@
         {
             "mimeType" : "image/jpeg",
             "name" : "book_cover_normal",
-            "uri" : "textures/book_cover_normal.jpg"
+            "uri" : "book_cover_normal.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "book_cover",
-            "uri" : "textures/book_cover.jpg"
+            "uri" : "book_cover.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "paper.jpg",
-            "uri" : "textures/paper_jpg.jpg"
+            "uri" : "paper_jpg.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "TexturesCom_WoodPanelsRectangular_Old_1K_normal",
-            "uri" : "textures/TexturesCom_WoodPanelsRectangular_Old_1K_normal.jpg"
+            "uri" : "TexturesCom_WoodPanelsRectangular_Old_1K_normal.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "TexturesCom_WoodPanelsRectangular_Old_1K_albedo",
-            "uri" : "textures/TexturesCom_WoodPanelsRectangular_Old_1K_albedo.jpg"
+            "uri" : "TexturesCom_WoodPanelsRectangular_Old_1K_albedo.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "TexturesCom_WoodPanelsRectangular_Old_1K_roughness",
-            "uri" : "textures/TexturesCom_WoodPanelsRectangular_Old_1K_roughness.jpg"
+            "uri" : "TexturesCom_WoodPanelsRectangular_Old_1K_roughness.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "floor_normal",
-            "uri" : "textures/floor_normal.jpg"
+            "uri" : "floor_normal.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "floor_diffuse",
-            "uri" : "textures/floor_diffuse.jpg"
+            "uri" : "floor_diffuse.jpg"
         },
         {
             "mimeType" : "image/jpeg",
             "name" : "floor_roughness",
-            "uri" : "textures/floor_roughness.jpg"
+            "uri" : "floor_roughness.jpg"
         }
     ],
     "accessors" : [

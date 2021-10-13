@@ -1,3 +1,4 @@
+import OrthographicCamera from "./data/camera/OrthographicCamera.js";
 import PerspectiveCamera from "./data/camera/PerspectiveCamera.js";
 import Node from "./data/Node.js";
 import Scene from "./data/Scene.js";
@@ -16,6 +17,9 @@ class Application {
 
     scene: Scene;
     camera: Node;
+    lights: Node[];
+
+    lastTime: number;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -76,6 +80,11 @@ class Application {
             throw new Error("Vozlisce s kamero ne vsebuje objekta kamere");
         }
 
+        this.lights = [];
+        for (const node of this.scene.nodes) {
+            this.pushLight(node);
+        }
+
         this.renderer = new Renderer(this.gl);
         this.renderer.prepareScene(this.scene);
         this.resize();
@@ -85,17 +94,25 @@ class Application {
         this.enableInteraction = this.enableInteraction.bind(this);
         this.canvas.addEventListener('click', this.enableInteraction);
         document.addEventListener('pointerlockchange', this.pointerlockchangeHandler);
+
+        this.lastTime = Date.now();
     }
 
     update() {
         if (this.camera) {
-            //console.log(this.camera.rotation.toArray());
+            let nowTime = Date.now();
+            let dt = (nowTime - this.lastTime) / 1000;
+            this.interactor.step(dt);
+            this.lastTime = nowTime;
         }
     }
 
     render() {
         if (this.renderer) {
-            this.renderer.render(this.scene, this.camera);
+            this.renderer.render(this.scene,
+                this.camera,
+                this.lights,
+                this.renderer.programs.shader1);
         }
     }
 
@@ -104,9 +121,23 @@ class Application {
         const h = this.canvas.clientHeight;
         const aspectRatio = w / h;
 
-        if (this.camera && this.camera.camera instanceof PerspectiveCamera) {
-            this.camera.camera.aspectRatio = aspectRatio;
-            this.camera.camera.updateTransform();
+        if (this.camera) {
+            if (this.camera.camera instanceof PerspectiveCamera) {
+                this.camera.camera.aspectRatio = aspectRatio;
+                this.camera.camera.updateMatrix();
+            }
+            if (this.camera.camera instanceof OrthographicCamera) {
+                this.camera.camera.updateMatrix();
+            }
+        }
+    }
+
+    pushLight(node: Node) {
+        if (node.light) {
+            this.lights.push(node);
+        }
+        for (const child of node.children) {
+            this.pushLight(child);
         }
     }
 

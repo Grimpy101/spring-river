@@ -1,19 +1,17 @@
-import Vector3 from "../algebra/Vector3.js";
-import Rotor from "../algebra/Rotor.js";
-
 import Camera from "./camera/Camera.js";
 import Light from "./light/Light.js";
 import Mesh from "./Mesh.js";
+import { mat4, vec3, quat } from "../external_libraries/glMatrix/index.js";
 
 export default class Node {
 
     name: string | null;
 
-    translation: Vector3;
-    rotation: Rotor;
-    scale: Vector3;
+    translation: any;
+    rotation: any;
+    scale: any;
 
-    transform: Vector3;
+    matrix: any;
 
     parent: Node;
     children: Node[];
@@ -25,15 +23,25 @@ export default class Node {
     constructor(options: any = {}) {
         this.name = options.name || null;
 
-        const translation = options.translation || [0, 0, 0];
-        const rotation = options.rotation || [0, 0, 0, 1];
-        const scale = options.scale || [1, 1, 1];
+        this.translation = options.translation
+            ? vec3.clone(options.translation)
+            : vec3.fromValues(0, 0, 0);
+        this.rotation = options.rotation
+            ? quat.clone(options.rotation)
+            : quat.fromValues(0, 0, 0, 1);
+        this.scale = options.scale
+            ? vec3.clone(options.scale)
+            : vec3.fromValues(1, 1, 1);
 
-        this.translation = new Vector3(translation);
-        this.scale = new Vector3(scale);
-        this.rotation = Rotor.quat2rotor(rotation);
+        this.matrix = options.matrix
+            ? mat4.clone(options.matrix)
+            : mat4.create();
 
-        this.transformFromTRS();
+        if (options.matrix) {
+            this.updateTransforms();
+        } else if (options.translation || options.rotation || options.scale) {
+            this.updateMatrix();
+        }
         
         this.camera = options.camera || null;
         this.mesh = options.mesh || null;
@@ -46,29 +54,19 @@ export default class Node {
         this.parent = null;
     }
 
-    updateTransform() {
-        if (this.parent) {
-            this.transform = Vector3.add(this.transform, this.parent.transform);
-            this.transform = Vector3.scale(this.transform, this.parent.scale);
-            this.transform = Vector3.rotate(this.transform, this.parent.rotation);
-        }
-        this.transform = Vector3.add(this.transform, this.translation);
+    updateTransforms() {
+        mat4.getRotation(this.rotation, this.matrix);
+        mat4.getTranslation(this.translation, this.matrix);
+        mat4.getScaling(this.scale, this.matrix);
     }
 
-    transformFromTRS() {
-        if (this.parent) {
-            this.transform = Vector3.add(this.translation, this.parent.transform);
-            this.transform = Vector3.scale(this.transform, this.parent.scale)
-            this.transform = Vector3.rotate(this.transform, this.parent.rotation);
-        } else {
-            this.transform = this.translation.clone();
-        }
-    }
-
-    clearTransforms() {
-        this.translation = new Vector3([0, 0, 0]);
-        this.scale = new Vector3([1, 1, 1]);
-        this.rotation = new Rotor(0, [0, 0, 0]);
+    updateMatrix() {
+        mat4.fromRotationTranslationScale(
+            this.matrix,
+            this.rotation,
+            this.translation,
+            this.scale
+        );
     }
 
     addChild(node: Node) {

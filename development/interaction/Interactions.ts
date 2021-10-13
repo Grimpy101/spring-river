@@ -5,6 +5,7 @@ export default class Interactions {
 
     player: Node;
     playerInteraction: PlayerInteraction;
+    enabled: boolean;
 
 
     constructor(player: Node) {
@@ -14,9 +15,16 @@ export default class Interactions {
 
     enable() {
         this.playerInteraction.enable();
+        this.enabled = true;
     }
 
     disable() {
         this.playerInteraction.disable();
+        this.enabled = false;
+    }
+
+    step(dt: number) {
+        this.playerInteraction.moveOnKeyAction(dt);
+        this.player.updateMatrix();
     }
 }

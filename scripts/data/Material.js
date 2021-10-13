@@ -1,11 +1,11 @@
-import Vector3 from "../algebra/Vector3.js";
+import { vec3 } from "../external_libraries/glMatrix/index.js";
 export default class Material {
     constructor(options = {}) {
         this.baseColorTexture = options.baseColorTexture || null;
         this.baseColorTexCoord = options.baseColorTexCoord || 0;
         this.baseColorFactor = options.baseColorFactor
-            ? new Vector3(options.baseColorFactor)
-            : new Vector3([0, 0, 0]);
+            ? vec3.clone(options.baseColorFactor)
+            : vec3.fromValues(0, 0, 0);
         this.metallicRoughnessTexture = options.metallicRoughnessTexture || null;
         this.metallicRoughnessTexCoord = options.metallicRoughnessTexCoord || 0;
         this.metallicFactor = options.metallicFactor !== undefined ? options.metallicFactor : 1;
@@ -19,8 +19,8 @@ export default class Material {
         this.emissiveTexture = options.emissiveTexture || null;
         this.emissiveTexCoord = options.emissiveTexCoord || 0;
         this.emissiveFactor = options.emissiveFactor
-            ? new Vector3(options.emissiveFactor)
-            : new Vector3([0, 0, 0]);
+            ? vec3.clone(options.emissiveFactor)
+            : vec3.fromValues(0, 0, 0);
         this.alphaMode = options.alphaMode || 'OPAQUE';
         this.alphaCutoff = options.alphaCutoff !== undefined ? options.alphaCutoff : 0.5;
         this.doubleSided = options.doubleSided || false;
