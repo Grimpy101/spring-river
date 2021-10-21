@@ -58,11 +58,6 @@ float shadowFactor() {
     return visibility;
 }
 
-vec2 getNormalOffset() {
-    float normalMap = normalize(texture2D(uNormalMap, vTexCoord).xyz * 2.0 - 1.0);
-    
-}
-
 void main() {
     oColor = vec4(0.0);
 
@@ -88,7 +83,8 @@ void main() {
 
     vec3 light = (ambient + diffuse + specular) * attenuation;
 
-    oColor += texture(uTexture, vTexCoord) * vec4(light, 1);
+    //oColor += texture(uTexture, vTexCoord) * vec4(light, 1);
+    oColor = texture(uShadowMap, vVertexRelativeToLight.xy);
 }
 `;
 
@@ -107,11 +103,7 @@ void main() {
 const shadow_fragment = `#version 300 es
 precision mediump float;
 
-layout(location = 0) out float fragmentdepth;
-
-void main() {
-    fragmentdepth = gl_FragCoord.z;
-}
+void main() {}
 `;
 
 export default {

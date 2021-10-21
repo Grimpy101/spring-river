@@ -82,7 +82,9 @@ class Application {
         if (this.camera) {
             let nowTime = Date.now();
             let dt = (nowTime - this.lastTime) / 1000;
-            this.interactor.step(dt);
+            if (this.interactor) {
+                this.interactor.step(dt);
+            }
             this.lastTime = nowTime;
         }
     }

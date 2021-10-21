@@ -82,7 +82,8 @@ void main() {
 
     vec3 light = (ambient + diffuse + specular) * attenuation;
 
-    oColor += texture(uTexture, vTexCoord) * vec4(light, 1);
+    //oColor += texture(uTexture, vTexCoord) * vec4(light, 1);
+    oColor = texture(uShadowMap, vVertexRelativeToLight.xy);
 }
 `;
 const shadow_vertex = `#version 300 es
@@ -99,11 +100,7 @@ void main() {
 const shadow_fragment = `#version 300 es
 precision mediump float;
 
-layout(location = 0) out float fragmentdepth;
-
-void main() {
-    fragmentdepth = gl_FragCoord.z;
-}
+void main() {}
 `;
 export default {
     shader1: { vertex, fragment },

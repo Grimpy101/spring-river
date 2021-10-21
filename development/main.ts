@@ -1,6 +1,8 @@
 import OrthographicCamera from "./data/camera/OrthographicCamera.js";
 import PerspectiveCamera from "./data/camera/PerspectiveCamera.js";
+import Mesh from "./data/Mesh.js";
 import Node from "./data/Node.js";
+import Primitive from "./data/Primitive.js";
 import Scene from "./data/Scene.js";
 import GLTFImporter from "./importer/GLTFImporter.js";
 import Interactions from "./interaction/Interactions.js";
@@ -102,7 +104,9 @@ class Application {
         if (this.camera) {
             let nowTime = Date.now();
             let dt = (nowTime - this.lastTime) / 1000;
-            this.interactor.step(dt);
+            if (this.interactor) {
+                this.interactor.step(dt);
+            }
             this.lastTime = nowTime;
         }
     }

@@ -9,10 +9,9 @@ import Accessor from '../data/Accessor.js';
 import Mesh from '../data/Mesh.js';
 import Node from '../data/Node.js';
 import Scene from '../data/Scene.js';
-import Camera from '../data/camera/Camera.js';
-import PerspectiveCamera from '../data/camera/PerspectiveCamera.js';
+import RenderUtils from './RenderUtils.js'
+import ShadowRenderer from './ShadowRenderer.js';
 import { mat4, quat, vec3, vec4 } from '../external_libraries/glMatrix/index.js';
-import Light from '../data/light/Light.js';
 
 export default class Renderer {
 
@@ -21,15 +20,13 @@ export default class Renderer {
     programs: { [name: string]:
         { program: WebGLProgram; attributes: any; uniforms: any; }; };
 
-    shadowMap: WebGLTexture;
-    shadowMVPMatrix: any;
+    shadowRenderer: ShadowRenderer;
 
     constructor(gl: WebGL2RenderingContext) {
         this.gl = gl;
         this.glObjects = new Map();
         this.programs = WebGL.buildPrograms(gl, shaders);
-        this.shadowMap = null;
-        this.shadowMVPMatrix = mat4.create();
+        this.shadowRenderer = new ShadowRenderer(gl, this.programs, this.glObjects);
 
         gl.clearColor(0, 0, 0, 1);
         gl.enable(gl.DEPTH_TEST);
@@ -181,17 +178,6 @@ export default class Renderer {
         }
     }
 
-    getCameraMatrix(camera: Node) {
-        const mvpMatrix = mat4.clone(camera.matrix);
-        let parent = camera.parent;
-        while (parent) {
-            mat4.mul(mvpMatrix, parent.matrix, mvpMatrix);
-            parent = parent.parent;
-        }
-        mat4.invert(mvpMatrix, mvpMatrix);
-        return mvpMatrix;
-    }
-
     getLightPosition(light: Node) {
         const mvpMatrix = mat4.create();
         let parent = light.parent;
@@ -230,123 +216,9 @@ export default class Renderer {
         }
     }
 
-    createLightCamera(light: Node) {
-        const lightCamera = new PerspectiveCamera({
-            name: "light_camera",
-            type: "perspective",
-            aspectRatio: 1.7777777777777777,
-            yfov: 0.8074908757770757,
-            zfar : 100,
-            znear : 0.10000000149011612
-        });
-
-        const lightCameraNode = new Node({
-            name: "light_camera_node",
-            translation: light.translation,
-            rotation: [0.34672799706459045,
-                0.26099100708961487,
-                -0.10108300298452377,
-                0.895235002040863],
-            scale: [1, 1, 1],
-            camera: lightCamera
-        });
-        lightCamera.updateMatrix();
-        return lightCameraNode;
-    }
-
-    prepareShadowMap(scene: Scene, lights: Node[]) {
-        const gl = this.gl;
-
-        let quality = [512, 512];
-
-        const shadowDepthTexture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, shadowDepthTexture);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.DEPTH_COMPONENT32F,
-            quality[0], quality[1],
-            0,
-            gl.DEPTH_COMPONENT,
-            gl.FLOAT,
-            null
-        );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        
-        const shadowBuffer = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, shadowBuffer);
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.DEPTH_ATTACHMENT,
-            gl.TEXTURE_2D,
-            shadowDepthTexture,
-            0
-        );
-
-        let status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-        if (status !== gl.FRAMEBUFFER_COMPLETE) {
-            throw new Error("FrameBuffer error!\n" + status.toString());
-        }
-
-        const cameraNode = this.createLightCamera(lights[0]);
-        this.renderShadowMap(scene, cameraNode, quality);
-
-        this.shadowMap = shadowDepthTexture;
-
-        gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    }
-
-    getViewProjectionMatrix(camera: Node) {
-        const mvpMatrix = mat4.clone(camera.matrix);
-        let parent = camera.parent;
-        while (parent) {
-            mat4.mul(mvpMatrix, parent.matrix, mvpMatrix);
-            parent = parent.parent;
-        }
-        mat4.invert(mvpMatrix, mvpMatrix);
-        mat4.mul(mvpMatrix, camera.camera.matrix, mvpMatrix);
-        return mvpMatrix;
-    }
-
-    renderShadowMap(scene: Scene, camera: Node, quality: number[]) {
-        const gl = this.gl;
-        gl.viewport(0, 0, quality[0], quality[1]);
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.DEPTH_BUFFER_BIT);
-        gl.useProgram(this.programs.shader_shadow.program);
-
-        const mvpMatrix = this.getViewProjectionMatrix(camera);
-        this.shadowMVPMatrix = mvpMatrix;
-        for (const node of scene.nodes) {
-            this.renderShadowNodes(node, mvpMatrix)
-        }
-    }
-
-    renderShadowNodes(node: Node, mvpMatrix: any) {
-        const gl = this.gl;
-
-        mvpMatrix = mat4.clone(mvpMatrix);
-        mat4.mul(mvpMatrix, mvpMatrix, node.matrix);
-
-        if (node.mesh) {
-            const program = this.programs.shader_shadow;
-            gl.uniformMatrix4fv(program.uniforms.uMVPMatrix, false, mvpMatrix);
-            for (const primitive of node.mesh.primitives) {
-                this.renderPrimitive(primitive, gl.TEXTURE1);
-            }
-        }
-
-        for (const child of node.children) {
-            this.renderShadowNodes(child, mvpMatrix);
-        }
-    }
 
     render(scene: Scene, camera: Node, lights: Node[], program: {program: WebGLProgram;attributes: any;uniforms: any;}) {
-        //this.prepareShadowMap(scene, lights);
+        this.shadowRenderer.runShadowMap(scene, lights);
         const gl = this.gl;
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         gl.clearColor(0, 0, 0, 1);
@@ -357,7 +229,7 @@ export default class Renderer {
         gl.uniform1i(program.uniforms.uShadowMap, 0);
         gl.uniform1i(program.uniforms.uNormalMap, 2);
 
-        const camMatrix = this.getCameraMatrix(camera);
+        const camMatrix = RenderUtils.getCameraMatrix(camera);
         const lightProperties = this.calculateLightInformation(lights[0], camMatrix);
 
         gl.uniform3fv(program.uniforms.uAmbientColor, lightProperties.ambientColor);
@@ -388,12 +260,13 @@ export default class Renderer {
                 0.5, 0.5, 0.5, 1.0
             );
             const depthBiasMVP = mat4.create();
-            mat4.mul(depthBiasMVP, biasMatrix, this.shadowMVPMatrix);
+            mat4.invert(depthBiasMVP, this.shadowRenderer.shadowMVPMatrix);
+            mat4.mul(depthBiasMVP, biasMatrix, depthBiasMVP);
             gl.uniformMatrix4fv(program.uniforms.uViewModel,
                 false, transMatrix);
             gl.uniformMatrix4fv(program.uniforms.uDepthMatrix, false, depthBiasMVP);
             for (const primitive of node.mesh.primitives) {
-                this.renderPrimitive(primitive, gl.TEXTURE1);
+                this.renderPrimitive(primitive);
             }
         }
 
@@ -402,7 +275,7 @@ export default class Renderer {
         }
     }
 
-    renderPrimitive(primitive: Primitive, activeTexture: number) {
+    renderPrimitive(primitive: Primitive) {
         const gl = this.gl;
 
         const vao = this.glObjects.get(primitive);
@@ -427,6 +300,11 @@ export default class Renderer {
             gl.activeTexture(gl.TEXTURE2);
             gl.bindTexture(gl.TEXTURE_2D, glNormalMap);
             gl.bindSampler(2, glNormalMapSampler);
+        }
+
+        if (this.shadowRenderer.shadowMap) {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.shadowRenderer.shadowMap);
         }
 
         if (primitive.indices) {
