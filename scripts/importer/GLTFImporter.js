@@ -256,6 +256,7 @@ export default class GLTFImporter {
                     type: gltfCamera.type
                 });
                 this.cache.set(gltfCamera, camera);
+                console.log(camera);
                 return camera;
             }
             else if (gltfCamera.type === 'orthographic') {

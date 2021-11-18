@@ -12,6 +12,7 @@ export default class Renderer {
         gl.clearColor(0, 0, 0, 1);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
     }
     prepareBufferView(bufferView) {
         if (this.glObjects.has(bufferView)) {
@@ -155,7 +156,11 @@ export default class Renderer {
             "position": position
         };
     }
+    textureTest() {
+        const verts = [];
+    }
     render(scene, camera, lights, program) {
+        this.shadowRenderer.camera = camera.clone();
         this.shadowRenderer.runShadowMap(scene, lights);
         const gl = this.gl;
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -173,28 +178,30 @@ export default class Renderer {
         gl.uniform4fv(program.uniforms.uLightPosition, lightProperties.position);
         gl.uniform1f(program.uniforms.uShininess, lightProperties.shininess);
         gl.uniform1f(program.uniforms.uLightRange, lightProperties.range);
-        gl.uniformMatrix4fv(program.uniforms.uProjection, false, camera.camera.matrix);
+        gl.uniformMatrix4fv(program.uniforms.uProjectionMatrix, false, camera.camera.matrix);
+        const shadowMatrix = this.shadowRenderer.shadowMVPMatrix;
         for (const node of scene.nodes) {
-            this.renderNode(node, camMatrix, lights, program);
+            this.renderNode(node, camMatrix, shadowMatrix, lights, program);
         }
     }
-    renderNode(node, transMatrix, lights, program) {
+    renderNode(node, transMatrix, shadowMatrix, lights, program) {
         const gl = this.gl;
         transMatrix = mat4.clone(transMatrix);
         mat4.mul(transMatrix, transMatrix, node.matrix);
+        shadowMatrix = mat4.clone(shadowMatrix);
+        mat4.mul(shadowMatrix, shadowMatrix, node.matrix);
+        const depthMatrix = mat4.clone(shadowMatrix);
+        const biasMatrix = mat4.fromValues(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+        mat4.mul(depthMatrix, depthMatrix, biasMatrix);
         if (node.mesh) {
-            const biasMatrix = mat4.fromValues(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-            const depthBiasMVP = mat4.create();
-            mat4.invert(depthBiasMVP, this.shadowRenderer.shadowMVPMatrix);
-            mat4.mul(depthBiasMVP, biasMatrix, depthBiasMVP);
-            gl.uniformMatrix4fv(program.uniforms.uViewModel, false, transMatrix);
-            gl.uniformMatrix4fv(program.uniforms.uDepthMatrix, false, depthBiasMVP);
+            gl.uniformMatrix4fv(program.uniforms.uViewModelMatrix, false, transMatrix);
+            gl.uniformMatrix4fv(program.uniforms.uShadowMatrix, false, depthMatrix);
             for (const primitive of node.mesh.primitives) {
                 this.renderPrimitive(primitive);
             }
         }
         for (const child of node.children) {
-            this.renderNode(child, transMatrix, lights, program);
+            this.renderNode(child, transMatrix, shadowMatrix, lights, program);
         }
     }
     renderPrimitive(primitive) {
